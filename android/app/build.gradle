@@ -1,7 +1,6 @@
 plugins {
     id "com.android.application"
     id "kotlin-android"
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id "dev.flutter.flutter-gradle-plugin"
 }
 
@@ -13,6 +12,9 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
+        lintOptions {
+            warning 'unchecked'
+        }
     }
 
     kotlinOptions {
@@ -34,38 +36,43 @@ android {
         release {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
+            minifyEnabled false
+            shrinkResources false
             signingConfig = signingConfigs.debug
         }
+          debug {
+            // Configuration for debug build
+        }
     }
-   
-    flavorDimensions "theme", "functionality", "storage"
+    
+
+    //flavor
+    flavorDimensions "default"
 
     productFlavors {
-        red {
-            dimension "theme"
-            // Konfigurasi spesifik untuk tema merah
+        redCameraRoll {
+            dimension "default"
+            applicationIdSuffix ".redCameraRoll"
+            versionNameSuffix "-redCameraRoll"
         }
-        green {
-            dimension "theme"
-            // Konfigurasi spesifik untuk tema hijau
+        redBuiltInCamera {
+            dimension "default"
+            applicationIdSuffix ".redBuiltInCamera"
+            versionNameSuffix "-redBuiltInCamera"
         }
-        cameraRoll {
-            dimension "functionality"
-            // Konfigurasi spesifik untuk menggunakan galeri
+        greenFilesystem {
+            dimension "default"
+            applicationIdSuffix ".greenFilesystem"
+            versionNameSuffix "-greenFilesystem"
         }
-        builtInCamera {
-            dimension "functionality"
-            // Konfigurasi spesifik untuk menggunakan kamera
-        }
-        encrypted {
-            dimension "storage"
-            // Konfigurasi spesifik untuk penyimpanan terenkripsi
-        }
-        nonEncrypted {
-            dimension "storage"
-            // Konfigurasi spesifik untuk penyimpanan tidak terenkripsi
+        greenCameraRoll {
+            dimension "default"
+            applicationIdSuffix ".greenCameraRoll"
+            versionNameSuffix "-greenCameraRoll"
         }
     }
+    ///end flavor
+   
 }
 
 flutter {
