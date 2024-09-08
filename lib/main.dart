@@ -1,167 +1,97 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:google_ml_kit/google_ml_kit.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'blocs/home_bloc.dart';
+import 'flavor_config.dart';
+import 'repositories/result_repository.dart';
+import 'screens/home_screen.dart';
 
 void main() {
-  runApp(MyApp());
+  final resultRepository = ResultRepository();
+
+  // Determine flavor from the environment variable (FLAVOR)
+  const flavor =
+      String.fromEnvironment('FLAVOR', defaultValue: 'greenFilesystem');
+
+  // Initialize flavor configuration based on environment
+  FlavorConfig.init(
+    flavorConfig: _getFlavorConfig(flavor),
+  );
+
+  runApp(MyApp(resultRepository: resultRepository));
+}
+
+// Helper function to map the flavor string to a FlavorConfig
+FlavorConfig _getFlavorConfig(String flavor) {
+  switch (flavor) {
+    case 'redCameraRoll':
+      return FlavorConfig.redCameraRoll;
+    case 'redBuiltInCamera':
+      return FlavorConfig.redBuiltInCamera;
+    case 'greenFilesystem':
+      return FlavorConfig.greenFilesystem;
+    case 'greenCameraRoll':
+      return FlavorConfig.greenCameraRoll;
+    default:
+      // Log or print to detect if an unexpected flavor is used
+      print('Unknown flavor: $flavor. Using greenFilesystem as default.');
+      return FlavorConfig.greenFilesystem;
+  }
 }
 
 class MyApp extends StatelessWidget {
+  final ResultRepository resultRepository;
+
+  const MyApp({super.key, required this.resultRepository});
+
   @override
   Widget build(BuildContext context) {
+    // Setup theme based on the flavor
+    ThemeData theme;
+    switch (FlavorConfig.instance.flavor) {
+      case Flavor.redCameraRoll:
+      case Flavor.redBuiltInCamera:
+        theme = ThemeData(
+          primaryColor: const Color(0xFFD32F2F), // Deeper red for primary color
+          buttonTheme: const ButtonThemeData(
+            buttonColor: Color(0xFFF44336), // Lighter red for button color
+            textTheme: ButtonTextTheme.primary,
+          ),
+          appBarTheme: const AppBarTheme(
+            backgroundColor: Color(0xFFD32F2F), // Matching AppBar color
+            titleTextStyle: TextStyle(color: Colors.white, fontSize: 20),
+          ),
+          colorScheme: ColorScheme.fromSwatch(primarySwatch: Colors.red)
+              .copyWith(
+                  secondary:
+                      const Color(0xFFFF8A80)), // Lighter red for accents
+        );
+        break;
+      case Flavor.greenFilesystem:
+      case Flavor.greenCameraRoll:
+        theme = ThemeData(
+          primaryColor: const Color(0xFF388E3C), // Rich green for primary color
+          buttonTheme: const ButtonThemeData(
+            buttonColor: Color(0xFF66BB6A), // Lighter green for buttons
+            textTheme: ButtonTextTheme.primary,
+          ),
+          appBarTheme: const AppBarTheme(
+            backgroundColor: Color(0xFF388E3C), // Matching AppBar color
+            titleTextStyle: TextStyle(color: Colors.white, fontSize: 20),
+          ),
+          colorScheme: ColorScheme.fromSwatch(primarySwatch: Colors.green)
+              .copyWith(
+                  secondary:
+                      const Color(0xFF81C784)), // Lighter green for accents
+        );
+        break;
+    }
+
     return MaterialApp(
-      title: 'Math Expression OCR',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: MathOcrScreen(),
-    );
-  }
-}
-
-class MathOcrScreen extends StatefulWidget {
-  @override
-  _MathOcrScreenState createState() => _MathOcrScreenState();
-}
-
-class _MathOcrScreenState extends State<MathOcrScreen> {
-  final ImagePicker _picker = ImagePicker();
-  String _ocrRawText = "Hasil OCR mentah akan muncul di sini";
-  String _ocrResult = "Hasil Ekspresi akan muncul di sini";
-  String _calculatedResult = "";
-
-  Future<void> _pickImage(ImageSource source) async {
-    XFile? image = await _picker.pickImage(source: source);
-    if (image != null) {
-      await _performOcr(image.path);
-    }
-  }
-
-  Future<void> _performOcr(String imagePath) async {
-    final inputImage = InputImage.fromFilePath(imagePath);
-    final textRecognizer = GoogleMlKit.vision.textRecognizer();
-    final RecognizedText recognizedText =
-        await textRecognizer.processImage(inputImage);
-
-    // Tampilkan hasil OCR mentah
-    String ocrRawText = recognizedText.text;
-
-    // Ekstrak hanya teks yang berisi angka dan operator matematika
-    String ocrResult = _extractFirstMathExpression(ocrRawText);
-
-    // Bersihkan spasi dari ekspresi
-    ocrResult = ocrResult.replaceAll(' ', '');
-
-    // Evaluasi ekspresi matematika
-    String result = _evaluateExpression(ocrResult);
-
-    setState(() {
-      _ocrRawText =
-          ocrRawText.isNotEmpty ? ocrRawText : "Tidak ada teks yang terbaca.";
-      _ocrResult = ocrResult.isNotEmpty
-          ? ocrResult
-          : "Tidak ada ekspresi matematika yang terbaca.";
-      _calculatedResult =
-          result.isNotEmpty ? "Hasil: $result" : "Ekspresi tidak valid.";
-    });
-
-    textRecognizer.close();
-  }
-
-  // Ekstrak hanya ekspresi matematika pertama
-  String _extractFirstMathExpression(String text) {
-    final regex = RegExp(r'\d+[+\-*/]\d+');
-    final match = regex.firstMatch(text);
-    return match?.group(0) ?? '';
-  }
-
-  // Evaluasi ekspresi matematika
-  String _evaluateExpression(String expression) {
-    try {
-      final regex = RegExp(r'(\d+)([+\-*/])(\d+)');
-      final match = regex.firstMatch(expression);
-      if (match != null) {
-        final num1 = double.parse(match.group(1)!);
-        final operator = match.group(2)!;
-        final num2 = double.parse(match.group(3)!);
-
-        switch (operator) {
-          case '+':
-            return (num1 + num2).toString();
-          case '-':
-            return (num1 - num2).toString();
-          case '*':
-            return (num1 * num2).toString();
-          case '/':
-            return (num1 / num2).toString();
-          default:
-            return 'Operator tidak valid';
-        }
-      }
-      return 'Ekspresi tidak valid';
-    } on FormatException {
-      return 'Ekspresi tidak valid';
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Math Expression OCR'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: <Widget>[
-            ElevatedButton(
-              onPressed: () => _pickImage(ImageSource.camera),
-              child: Text('Ambil Gambar dari Kamera'),
-            ),
-            SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () => _pickImage(ImageSource.gallery),
-              child: Text('Pilih Gambar dari Galeri'),
-            ),
-            SizedBox(height: 16),
-            Text(
-              'Hasil OCR Mentah:',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 10),
-            Expanded(
-              child: SingleChildScrollView(
-                child: Text(
-                  _ocrRawText,
-                  style: TextStyle(fontSize: 16),
-                ),
-              ),
-            ),
-            SizedBox(height: 10),
-            Text(
-              'Hasil Ekspresi:',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 10),
-            Expanded(
-              child: SingleChildScrollView(
-                child: Text(
-                  _ocrResult,
-                  style: TextStyle(fontSize: 16),
-                ),
-              ),
-            ),
-            SizedBox(height: 10),
-            Text(
-              _calculatedResult,
-              style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.green),
-            ),
-          ],
-        ),
+      title: 'Image to Result Calculator',
+      theme: theme,
+      home: BlocProvider(
+        create: (context) => HomeBloc(resultRepository),
+        child: HomeScreen(flavor: FlavorConfig.instance.name),
       ),
     );
   }
